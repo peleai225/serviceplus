@@ -90,6 +90,7 @@ export interface ApiConfigParams {
   jekoApiKeyId?: string;
   jekoStoreId?: string;
   jekoEnv?: string;
+  [key: string]: unknown;
 }
 
 export const saveApiConfig = async (params: ApiConfigParams): Promise<void> => {

@@ -40,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const ref = db.doc(`users/${SUPER_ADMIN.id}`);
     const snap = await ref.get();
 
-    if (snap.exists()) {
+    if (snap.exists) {
       const data = snap.data();
       return res.status(200).json({
         message: 'Super Admin existe déjà dans Firestore.',
