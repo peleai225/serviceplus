@@ -9,6 +9,7 @@ import AdminDashboard from './components/AdminDashboard';
 import { db, auth } from './services/firebase';
 import { sendNotification } from './services/notificationService';
 import { requestProviderWithdrawal } from './services/jekoService';
+import { checkSession, logout as authLogout } from './services/authService';
 import * as firestoreModule from 'firebase/firestore';
 import * as firebaseAuth from 'firebase/auth';
 const { signInAnonymously: fbSignInAnonymously } = firebaseAuth as any;
@@ -35,7 +36,10 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
       const savedUser = localStorage.getItem('serviplus_user');
-      return savedUser ? JSON.parse(savedUser) : null;
+      if (!savedUser) return null;
+      const user = JSON.parse(savedUser);
+      const { password: _pw, ...safeUser } = user;
+      return safeUser as User;
     } catch {
       return null;
     }
@@ -72,6 +76,21 @@ const App: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<string>('home');
 
+  // Validate session token on mount — logs out users with expired/missing sessions
+  useEffect(() => {
+    if (!currentUser) return;
+    checkSession().then(({ valid, user }) => {
+      if (!valid) {
+        localStorage.removeItem('serviplus_session_token');
+        setCurrentUser(null);
+      } else if (user) {
+        setCurrentUser(prev => prev ? { ...prev, ...(user as any) } : user as User);
+      }
+    }).catch(() => {
+      // Session check failed (network error) — keep local state as-is
+    });
+  }, []);
+
   // Anonymous Firebase Auth — needed for Firestore security rules (request.auth != null).
   // The app uses its own phone+password auth layer on top.
   useEffect(() => {
@@ -98,14 +117,16 @@ const App: React.FC = () => {
   // Save changes locally to prevent any loss of data
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem('serviplus_user', JSON.stringify(currentUser));
+      const { password: _pw, ...safeUser } = currentUser as any;
+      localStorage.setItem('serviplus_user', JSON.stringify(safeUser));
     } else {
       localStorage.removeItem('serviplus_user');
     }
   }, [currentUser]);
 
   useEffect(() => {
-    localStorage.setItem('serviplus_users_local', JSON.stringify(users));
+    const safeUsers = users.map(({ password: _pw, ...u }: any) => u);
+    localStorage.setItem('serviplus_users_local', JSON.stringify(safeUsers));
   }, [users]);
 
   useEffect(() => {
@@ -226,7 +247,12 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await authLogout();
+    } catch {
+      localStorage.removeItem('serviplus_session_token');
+    }
     setCurrentUser(null);
     setActiveTab('home');
   };

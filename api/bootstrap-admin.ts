@@ -29,6 +29,13 @@ const SUPER_ADMIN = {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
+  // Protect against unauthorized admin creation
+  const secret = (req.query.secret || req.body?.secret) as string | undefined;
+  const expectedSecret = process.env.BOOTSTRAP_SECRET;
+  if (!expectedSecret || !secret || secret !== expectedSecret) {
+    return res.status(403).json({ error: 'Accès refusé. Secret requis.' });
+  }
+
   try {
     const ref = db.doc(`users/${SUPER_ADMIN.id}`);
     const snap = await ref.get();

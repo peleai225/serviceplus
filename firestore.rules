@@ -2,75 +2,118 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ─── Helper ──────────────────────────────────────────────────────────────
-    // App uses anonymous Firebase Auth (signInAnonymously) to satisfy this check.
-    // UID matching is not used because the app has its own phone-based auth layer.
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+    // L'app utilise Firebase Anonymous Auth (signInAnonymously) pour satisfaire
+    // cette verification. Le matching par UID n'est pas utilise car l'app a
+    // sa propre couche d'auth phone+password.
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Guard: passwords must never be stored in Firestore
+    // Protection : les mots de passe ne doivent JAMAIS etre stockes dans Firestore
     function hasNoPasswordField() {
       return !('password' in request.resource.data);
     }
 
     // ─── users ────────────────────────────────────────────────────────────────
+    // Profils utilisateurs (clients, prestataires, admins)
     match /users/{userId} {
-      // Any signed-in client can read users (needed for provider discovery)
+      // Lecture : tout utilisateur connecte (necessaire pour la decouverte de prestataires)
       allow read: if isSignedIn();
 
-      // Create / update: signed in, no password field allowed
+      // Creation / mise a jour : connecte + champ password interdit
       allow create: if isSignedIn() && hasNoPasswordField();
       allow update: if isSignedIn() && hasNoPasswordField();
 
-      // Delete: only via admin action (signed in)
+      // Suppression : utilisateur connecte (restriction admin appliquee cote app)
       allow delete: if isSignedIn();
     }
 
     // ─── missions ─────────────────────────────────────────────────────────────
+    // Missions de services (creation, acceptation, suivi, validation)
     match /missions/{missionId} {
       allow read, write: if isSignedIn();
     }
 
     // ─── transactions ─────────────────────────────────────────────────────────
+    // Transactions financieres (INCOME, PAYOUT, abonnements, retraits)
     match /transactions/{transactionId} {
-      // Read: signed-in users (filtered by userId in frontend)
+      // Lecture : utilisateurs connectes (filtrage par userId cote frontend)
       allow read: if isSignedIn();
 
-      // Write: signed in — app creates INCOME transactions on completion,
-      //        Cloud Functions create SUB- and WITHDRAWAL- transactions.
+      // Creation/mise a jour : l'app cree les transactions INCOME a la completion,
+      // les Cloud Functions creent les transactions SUB- et WITHDRAWAL-
       allow create, update: if isSignedIn();
 
-      // Only admins should delete transactions (no delete needed currently)
+      // Suppression : INTERDITE — les transactions sont immuables
       allow delete: if false;
     }
 
     // ─── notifications ────────────────────────────────────────────────────────
+    // Notifications in-app (lecture, marquage comme lu, suppression)
     match /notifications/{notificationId} {
       allow read, write: if isSignedIn();
     }
 
-    // ─── pending_payments ─────────────────────────────────────────────────────
-    // Only Cloud Functions interact with this collection — no client access
-    match /pending_payments/{paymentId} {
-      allow read, write: if false;
-    }
-
     // ─── platform/config ──────────────────────────────────────────────────────
+    // Configuration de la plateforme (tarifs, fonctionnalites, annonces, villes)
     match /platform/config {
+      // Lecture : tout utilisateur connecte
       allow read: if isSignedIn();
-      allow write: if isSignedIn(); // Admins only in practice (enforced at app layer)
+
+      // Ecriture : utilisateurs connectes (restriction admin appliquee cote app)
+      allow write: if isSignedIn();
     }
 
-    // API secrets — NEVER accessible from client
+    // ═══════════════════════════════════════════════════════════════════════════
+    // COLLECTIONS SERVEUR UNIQUEMENT — Admin SDK only
+    // Ces collections ne sont JAMAIS accessibles depuis le client.
+    // Seules les Cloud Functions (via Admin SDK) peuvent y acceder.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // Cles API Jeko et autres secrets
     match /platform/secrets {
       allow read, write: if false;
     }
 
-    // ─── platform/config subcollections (if any) ─────────────────────────────
-    match /platform/{doc} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+    // Paiements Jeko en attente (suivi par Cloud Functions)
+    match /pending_payments/{paymentId} {
+      allow read, write: if false;
+    }
+
+    // Codes OTP pour verification telephone (geres par Cloud Functions)
+    match /otp_codes/{codeId} {
+      allow read, write: if false;
+    }
+
+    // Tentatives de verification OTP (protection brute-force, gerees par API routes)
+    match /otp_attempts/{attemptId} {
+      allow read, write: if false;
+    }
+
+    // Hashes de mots de passe (auth custom, geres par Cloud Functions)
+    match /auth_credentials/{credId} {
+      allow read, write: if false;
+    }
+
+    // Tokens de session (auth custom, geres par Cloud Functions)
+    match /sessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    // Donnees de rate limiting (protection anti-abus, gerees par Cloud Functions)
+    match /rate_limits/{limitId} {
+      allow read, write: if false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // REGLE PAR DEFAUT — Refuser tout acces non explicitement autorise
+    // Securite : aucune collection non listee ci-dessus ne sera accessible.
+    // Note : Firestore refuse par defaut, mais cette regle rend l'intention
+    // explicite et empeche tout oubli futur.
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

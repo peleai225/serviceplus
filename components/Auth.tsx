@@ -5,6 +5,8 @@ import { uploadImage } from '../services/firebase';
 import { CITIES } from '../constants';
 import { cn } from '../lib/utils';
 import { getAppConfig } from '../services/configService';
+import { login as serverLogin, sendOTP, verifyOTP as serverVerifyOTP } from '../services/authService';
+import { MOCK_USERS } from '../constants';
 
 const BACKGROUND_IMAGE = "https://images.unsplash.com/photo-1556740758-90de374c12ad?q=80&w=2070&auto=format&fit=crop";
 
@@ -35,7 +37,6 @@ const Auth: React.FC<AuthProps> = ({ users, onLogin, onRegister, onResetPassword
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [typeOf2FA, setTypeOf2FA] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
   const [otpSentPhone, setOtpSentPhone] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('');
   const [typedOtp, setTypedOtp] = useState('');
   const [tempUserToAuth, setTempUserToAuth] = useState<User | null>(null);
 
@@ -196,9 +197,8 @@ const Auth: React.FC<AuthProps> = ({ users, onLogin, onRegister, onResetPassword
     }
   };
 
-  const trigger2FA = (targetUser: User, mode: 'LOGIN' | 'REGISTER') => {
-    const randomOtp = Math.floor(1000 + Math.random() * 9000).toString();
-    setGeneratedOtp(randomOtp);
+  const trigger2FA = async (targetUser: User, mode: 'LOGIN' | 'REGISTER') => {
+    await sendOTP(targetUser.phone);
     setOtpSentPhone(targetUser.phone);
     setTempUserToAuth(targetUser);
     setTypeOf2FA(mode);
@@ -241,8 +241,11 @@ const Auth: React.FC<AuthProps> = ({ users, onLogin, onRegister, onResetPassword
     }, 150);
   };
 
-  const handleVerify2FA = () => {
-    if (typedOtp === generatedOtp || typedOtp === '7890') {
+  const handleVerify2FA = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      await serverVerifyOTP(otpSentPhone, typedOtp);
       setSuccessMessage("🔐 Double Authentification Validée !");
       setShow2FAModal(false);
       if (tempUserToAuth) {
@@ -252,9 +255,10 @@ const Auth: React.FC<AuthProps> = ({ users, onLogin, onRegister, onResetPassword
           onRegister(tempUserToAuth);
         }
       }
-    } else {
-      setError("❌ Le code de sécurité à deux facteurs est incorrect. Veuillez réessayer.");
-      alert("Le code saisi est faux. Reportez-vous à l'encadré jaune de démo pour copier le code de test : " + generatedOtp);
+    } catch (err: any) {
+      setError("❌ " + (err.message || "Code de sécurité incorrect. Veuillez réessayer."));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -268,80 +272,38 @@ const Auth: React.FC<AuthProps> = ({ users, onLogin, onRegister, onResetPassword
       const cleanTypedPhone = formData.phone.replace(/\D/g, '');
 
       if (viewMode === 'LOGIN') {
-        // Enforce 4-digit PIN constraint
-        const pinPattern = /^\d{4}$/;
-        if (!pinPattern.test(formData.password)) {
-          throw new Error("⚠️ SÉCURITÉ : Votre code secret doit obligatoirement comporter 4 chiffres exacts (Ex: 1234).");
+        if (!formData.phone || !formData.password) {
+          throw new Error("Numéro et code secret requis.");
         }
 
-        // Direct foolproof check for demo users
-        const demoUsers = [
-          {
-            id: 'u1',
-            name: 'Client Demo',
-            email: 'client@serviplus.ci',
-            phone: '0103030334',
-            role: UserRole.CLIENT,
-            avatarUrl: 'https://ui-avatars.com/api/?name=Client&background=0D8ABC&color=fff',
-            address: 'Cocody, Abidjan',
-            city: 'Abidjan',
-            walletBalance: 0,
-            password: '1234'
-          },
-          {
-            id: 'u2',
-            name: 'Prestataire Demo',
-            email: 'presta@serviplus.ci',
-            phone: '0554199359',
-            role: UserRole.PROVIDER,
-            avatarUrl: 'https://ui-avatars.com/api/?name=Presta&background=orange&color=fff',
-            address: 'Yopougon, Abidjan',
-            city: 'Abidjan',
-            services: [ServiceCategory.CLEANING, ServiceCategory.COOKING],
-            verified: true,
-            rating: 4.8,
-            walletBalance: 15000,
-            password: '1234'
-          },
-          {
-            id: 'u3',
-            name: 'Admin Demo',
-            email: 'admin@serviplus.ci',
-            phone: '0749793516',
-            role: UserRole.ADMIN,
-            avatarUrl: 'https://ui-avatars.com/api/?name=Admin&background=purple&color=fff',
-            password: '1234',
-            isSuperAdmin: true
+        // Try server-side authentication first
+        let authenticatedUser: User | null = null;
+        try {
+          const result = await serverLogin(cleanTypedPhone, formData.password);
+          authenticatedUser = result.user as User;
+        } catch {
+          // Server auth failed — fall back to local (demo accounts & backward compat)
+          const localUser = (MOCK_USERS as any[]).find(d =>
+            d.phone.replace(/\D/g, '') === cleanTypedPhone && d.password === formData.password
+          ) || users.find(u =>
+            u.phone.replace(/\D/g, '') === cleanTypedPhone && (u as any).password === formData.password
+          ) || null;
+
+          if (!localUser) {
+            throw new Error("Identifiants de connexion incorrects. Vérifiez le numéro et le code secret.");
           }
-        ];
 
-        const isDemo = demoUsers.find(d => d.phone === cleanTypedPhone && d.password === formData.password);
-        if (isDemo) {
-          if (config.enable2FA) {
-            trigger2FA(isDemo, 'LOGIN');
-          } else {
-            onLogin(isDemo);
+          if (localUser.role === UserRole.ADMIN && !(localUser as any).isSuperAdmin && localUser.verified === false) {
+            throw new Error("⚠️ COMPTE SUSPENDU : Votre accès de sous-administrateur a été désactivé par le Super Administrateur.");
           }
-          return;
-        }
 
-        const user = users.find(u => {
-          const userPhoneClean = u.phone.replace(/\D/g, '');
-          return userPhoneClean === cleanTypedPhone && u.password === formData.password;
-        });
-
-        if (!user) {
-           throw new Error("Identifiants de connexion incorrects. Vérifiez le numéro et le code de 4 chiffres.");
-        }
-
-        if (user.role === UserRole.ADMIN && !user.isSuperAdmin && user.verified === false) {
-           throw new Error("⚠️ COMPTE SUSPENDU : Votre accès de sous-administrateur a été temporairement désactivé par le Super Administrateur.");
+          authenticatedUser = localUser as User;
         }
 
         if (config.enable2FA) {
-          trigger2FA(user, 'LOGIN');
+          await trigger2FA(authenticatedUser!, 'LOGIN');
         } else {
-          onLogin(user);
+          onLogin(authenticatedUser!);
         }
       } else {
         // REGISTER
@@ -449,8 +411,35 @@ const Auth: React.FC<AuthProps> = ({ users, onLogin, onRegister, onResetPassword
           idVersoFileSize: idCardVersoFile ? idCardVersoFile.size : undefined
         };
 
+        // Register server-side for secure password hashing
+        try {
+          const serverRes = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: formData.name,
+              phone: cleanTypedPhone,
+              city: formData.city,
+              role: formData.role,
+              password: formData.password,
+            }),
+          });
+          if (!serverRes.ok) {
+            const errData = await serverRes.json().catch(() => ({}));
+            if (serverRes.status === 409) {
+              throw new Error(errData.error || 'Ce numéro de téléphone est déjà utilisé');
+            }
+          } else {
+            const serverData = await serverRes.json();
+            if (serverData.user?.id) newUser.id = serverData.user.id;
+          }
+        } catch (err: any) {
+          if (err.message?.includes('déjà utilisé')) throw err;
+          console.warn('Server registration unavailable, using local-only:', err);
+        }
+
         if (config.enable2FA) {
-          trigger2FA(newUser, 'REGISTER');
+          await trigger2FA(newUser, 'REGISTER');
         } else {
           onRegister(newUser);
         }
@@ -1420,22 +1409,21 @@ const Auth: React.FC<AuthProps> = ({ users, onLogin, onRegister, onResetPassword
             </div>
 
             <p className="text-xs text-gray-600 leading-relaxed">
-              Afin de sécuriser votre compte, un code temporaire d'accès Servi+ a été simulé par SMS au <strong className="text-gray-900">+225 {otpSentPhone}</strong>.
+              Afin de sécuriser votre compte, un code temporaire d'accès Servi+ a été envoyé par SMS au <strong className="text-gray-900">+225 {otpSentPhone}</strong>.
             </p>
 
-            {/* Demo callout */}
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-left">
-              <p className="text-[10px] uppercase font-black text-amber-600 mb-0.5 tracking-wider">🔒 CODE DE SÉCURITÉ À ENTRER (DÉMO) :</p>
-              <p className="text-xl font-black text-amber-700 tracking-widest font-mono text-center select-all bg-white p-2.5 rounded-xl border border-gray-100">{generatedOtp}</p>
-              <p className="text-[9px] text-gray-500 font-semibold leading-relaxed mt-1.5">Saisissez ce code à 4 chiffres ci-dessous pour valider l'action de {typeOf2FA === 'LOGIN' ? 'connexion' : 'création de compte'}.</p>
+            {/* SMS sent notification */}
+            <div className="bg-green-50 border border-green-200 p-4 rounded-2xl text-left">
+              <p className="text-[10px] uppercase font-black text-green-700 mb-0.5 tracking-wider">✉️ CODE ENVOYÉ PAR SMS :</p>
+              <p className="text-xs text-green-700 font-medium leading-relaxed">Un code de vérification à 6 chiffres a été envoyé au <strong>+225 {otpSentPhone}</strong>. Saisissez-le ci-dessous pour valider l'action de {typeOf2FA === 'LOGIN' ? 'connexion' : 'création de compte'}.</p>
             </div>
 
             <div className="space-y-4 text-left">
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Saisir le code d'accès à 4 chiffres</label>
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Saisir le code d'accès à 6 chiffres</label>
                 <input
                   type="tel"
-                  maxLength={4}
+                  maxLength={6}
                   pattern="[0-9]*"
                   inputMode="numeric"
                   placeholder="Ex: 1234"
