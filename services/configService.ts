@@ -179,7 +179,7 @@ const DEFAULT_CONFIG: AppConfig = {
 };
 
 const FIRESTORE_CONFIG_DOC = 'platform/config';
-const LS_KEY = 'serviplus_app_config';
+const LS_KEY = 'serviplus_app_config_v2';
 
 // Synchronous read — returns cached localStorage value (fast, used on first render)
 export const getAppConfig = (): AppConfig => {
@@ -187,7 +187,8 @@ export const getAppConfig = (): AppConfig => {
     const saved = localStorage.getItem(LS_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      return { ...DEFAULT_CONFIG, ...parsed };
+      // enable2FA always uses the code default (requires configured SMS provider)
+      return { ...DEFAULT_CONFIG, ...parsed, enable2FA: DEFAULT_CONFIG.enable2FA };
     }
   } catch {}
   return DEFAULT_CONFIG;
@@ -198,7 +199,7 @@ export const loadAppConfigFromFirestore = async (): Promise<AppConfig> => {
   try {
     const snap = await getDoc(doc(db, FIRESTORE_CONFIG_DOC));
     if (snap.exists()) {
-      const data = { ...DEFAULT_CONFIG, ...snap.data() } as AppConfig;
+      const data = { ...DEFAULT_CONFIG, ...snap.data(), enable2FA: DEFAULT_CONFIG.enable2FA } as AppConfig;
       localStorage.setItem(LS_KEY, JSON.stringify(data));
       return data;
     }
@@ -213,7 +214,7 @@ export const subscribeAppConfig = (callback: (cfg: AppConfig) => void): (() => v
   try {
     return onSnapshot(doc(db, FIRESTORE_CONFIG_DOC), (snap: any) => {
       if (snap.exists()) {
-        const data = { ...DEFAULT_CONFIG, ...snap.data() } as AppConfig;
+        const data = { ...DEFAULT_CONFIG, ...snap.data(), enable2FA: DEFAULT_CONFIG.enable2FA } as AppConfig;
         localStorage.setItem(LS_KEY, JSON.stringify(data));
         callback(data);
       }
