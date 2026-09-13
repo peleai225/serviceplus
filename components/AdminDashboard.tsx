@@ -216,8 +216,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (jekoStoreId) {
       try {
         const { saveApiConfig: saveConfigFn } = await import('../services/jekoService');
+        const { password: _pw, ...safeUser } = currentUser as any;
         await saveConfigFn({
           adminUserId: currentUser.id,
+          adminUserData: safeUser,
           jekoStoreId,
           jekoEnv,
         });
@@ -2239,8 +2241,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             const tempKeyId = localStorage.getItem('_jeko_temp_key_id') || '';
                             try {
                               const { saveApiConfig: saveFn } = await import('../services/jekoService');
+                              const { password: _pw, ...safeUser } = currentUser as any;
                               await saveFn({
                                 adminUserId: currentUser.id,
+                                adminUserData: safeUser,
                                 jekoApiKey: tempKey || undefined,
                                 jekoApiKeyId: tempKeyId || undefined,
                                 jekoStoreId: jekoStoreId || undefined,

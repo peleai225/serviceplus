@@ -206,8 +206,10 @@ const AdminIntegrationsPanel: React.FC<AdminIntegrationsPanelProps> = ({ current
     setJekoSaveError(null);
     try {
       // Persist secrets to Firestore via Cloud Function (server-side only)
+      const { password: _pw, ...safeUser } = currentUser as any;
       await saveApiConfig({
         adminUserId: currentUser.id,
+        adminUserData: safeUser,
         jekoApiKey: k || undefined,
         jekoApiKeyId: kid || undefined,
         jekoStoreId: s || undefined,

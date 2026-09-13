@@ -62,6 +62,7 @@ export interface WithdrawalResult {
 
 export interface ApiConfigParams {
   adminUserId: string;
+  adminUserData?: Record<string, unknown>;
   jekoApiKey?: string;
   jekoApiKeyId?: string;
   jekoStoreId?: string;

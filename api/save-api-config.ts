@@ -8,14 +8,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { adminUserId, jekoApiKey, jekoApiKeyId, jekoStoreId, jekoEnv } = req.body || {};
+    const { adminUserId, adminUserData, jekoApiKey, jekoApiKeyId, jekoStoreId, jekoEnv } = req.body || {};
 
     if (!adminUserId) return res.status(400).json({ error: 'adminUserId required' });
 
-    const userSnap = await db.doc(`users/${adminUserId}`).get();
-    const userData = userSnap.data();
+    const userRef = db.doc(`users/${adminUserId}`);
+    let userSnap = await userRef.get();
+    let userData = userSnap.data();
+
+    // Bootstrap: if user doesn't exist in Firestore yet, create from request data
+    if (!userData && adminUserData && adminUserData.role === 'ADMIN') {
+      const { password, ...safeData } = adminUserData;
+      await userRef.set({ ...safeData, id: adminUserId, syncedAt: new Date().toISOString() });
+      userSnap = await userRef.get();
+      userData = userSnap.data();
+    }
+
     if (!userData) {
-      return res.status(403).json({ error: `Utilisateur ${adminUserId} introuvable dans Firestore. Reconnectez-vous.` });
+      return res.status(403).json({ error: `Utilisateur ${adminUserId} introuvable dans Firestore.` });
     }
     if (userData.role !== 'ADMIN') {
       return res.status(403).json({ error: `Rôle "${userData.role}" insuffisant. Seuls les ADMIN peuvent sauvegarder.` });
