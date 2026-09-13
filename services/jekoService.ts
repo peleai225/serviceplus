@@ -12,7 +12,13 @@ async function apiCall<T>(endpoint: string, body: Record<string, unknown>): Prom
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+  const text = await res.text();
+  let data: any;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(res.ok ? text : `Erreur serveur (${res.status}). Vérifiez la configuration Vercel.`);
+  }
   if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
   return data as T;
 }
