@@ -28,7 +28,7 @@ export function invalidateCache() {
   _cache = null;
 }
 
-export const APP_BASE_URL = process.env.APP_BASE_URL ?? 'https://serviplus-f1b8f.vercel.app';
+export const APP_BASE_URL = process.env.APP_BASE_URL ?? 'https://serviceplus-steel.vercel.app';
 
 export function cors(res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
