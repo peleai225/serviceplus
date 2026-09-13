@@ -3,10 +3,14 @@ const JEKO_BASE = 'https://api.jeko.africa';
 export function formatPhoneCI(phone?: string): string | undefined {
   if (!phone) return undefined;
   let cleaned = phone.replace(/[\s\-()]/g, '');
+  // Already international
+  if (cleaned.startsWith('+225')) return cleaned;
   if (cleaned.startsWith('+')) return cleaned;
-  if (cleaned.startsWith('00225')) cleaned = cleaned.slice(2);
-  if (cleaned.startsWith('225') && cleaned.length >= 12) return `+${cleaned}`;
-  if (cleaned.startsWith('0')) cleaned = cleaned.slice(1);
+  // 00225... dial prefix
+  if (cleaned.startsWith('00225')) return `+${cleaned.slice(2)}`;
+  // 225XXXXXXXXXX without +
+  if (cleaned.startsWith('225') && cleaned.length >= 13) return `+${cleaned}`;
+  // Local 10-digit CI number (01/05/07...) — do NOT strip the leading 0
   return `+225${cleaned}`;
 }
 
