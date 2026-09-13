@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60">
+  <rect width="60" height="60" rx="14" fill="#1AC8ED"/>
+  <g transform="translate(30,10) scale(0.6)">
+    <ellipse cx="22" cy="30" rx="18" ry="22" fill="#1a1a1a"/>
+    <ellipse cx="22" cy="28" rx="14" ry="16" fill="white"/>
+    <ellipse cx="22" cy="32" rx="14" ry="16" fill="white"/>
+    <circle cx="16" cy="22" r="3" fill="#1a1a1a"/>
+    <circle cx="28" cy="22" r="3" fill="#1a1a1a"/>
+    <ellipse cx="22" cy="28" rx="5" ry="3" fill="#FF8C00"/>
+    <ellipse cx="8" cy="30" rx="6" ry="3" fill="#1a1a1a" transform="rotate(-20,8,30)"/>
+    <ellipse cx="36" cy="30" rx="6" ry="3" fill="#1a1a1a" transform="rotate(20,36,30)"/>
+  </g>
+  <text x="80" y="40" font-family="Arial,Helvetica,sans-serif" font-size="32" font-weight="bold" fill="#1a1a1a">wave</text>
+</svg>

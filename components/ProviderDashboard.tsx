@@ -40,6 +40,7 @@ import { cn } from '../lib/utils';
 import { getAppConfig } from '../services/configService';
 import { initiateSubscriptionPayment, openCheckout } from '../services/jekoService';
 import { ABIDJAN_ZONES } from '../constants';
+import OperatorSelector, { OperatorId } from './OperatorSelector';
 
 export interface ProviderDashboardProps {
   currentUser: User;
@@ -89,7 +90,7 @@ export default function ProviderDashboard({
   const [withdrawalAmount, setWithdrawalAmount] = useState<number>(0);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [withdrawalPhone, setWithdrawalPhone] = useState(currentUser.phone || '');
-  const [withdrawalOperator, setWithdrawalOperator] = useState<'orange' | 'mtn' | 'wave'>('wave');
+  const [withdrawalOperator, setWithdrawalOperator] = useState<OperatorId>('wave');
   const [withdrawalLoading, setWithdrawalLoading] = useState(false);
   const [withdrawalFeedback, setWithdrawalFeedback] = useState('');
   
@@ -111,7 +112,7 @@ export default function ProviderDashboard({
   // Subscription states
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
-  const [selectedOM, setSelectedOM] = useState<'orange' | 'mtn' | 'wave'>('orange');
+  const [selectedOM, setSelectedOM] = useState<OperatorId>('wave');
   const [phoneForMoMo, setPhoneForMoMo] = useState(currentUser.phone || '');
   const [showSuccessSubscription, setShowSuccessSubscription] = useState(false);
 
@@ -1414,26 +1415,7 @@ export default function ProviderDashboard({
                 {/* Opérateur */}
                 <div>
                   <p className="text-xs font-bold text-gray-500 mb-2">Moyen de paiement</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'orange', label: 'Orange', emoji: '🍊', active: 'bg-orange-500 border-orange-500 text-white' },
-                      { id: 'mtn',    label: 'MTN',    emoji: '⚡', active: 'bg-yellow-500 border-yellow-500 text-white' },
-                      { id: 'wave',   label: 'Wave',   emoji: '🌊', active: 'bg-blue-400 border-blue-400 text-white' },
-                    ].map(op => (
-                      <button
-                        key={op.id}
-                        type="button"
-                        onClick={() => setSelectedOM(op.id as 'orange' | 'mtn' | 'wave')}
-                        className={cn(
-                          "py-2.5 rounded-xl text-xs font-semibold border transition-all text-center",
-                          selectedOM === op.id ? op.active : "bg-gray-50 border-gray-200 text-gray-500"
-                        )}
-                      >
-                        <span className="block text-base">{op.emoji}</span>
-                        {op.label}
-                      </button>
-                    ))}
-                  </div>
+                  <OperatorSelector selected={selectedOM} onChange={setSelectedOM} />
                 </div>
 
                 {/* Numéro */}
@@ -1454,7 +1436,7 @@ export default function ProviderDashboard({
                     setIsSubscribing(true);
                     try {
                       const amount = selectedSubPeriod === 'monthly' ? 10000 : 80000;
-                      const operatorMap: Record<string, string> = { orange: 'Orange Money', mtn: 'MTN MoMo', wave: 'Wave' };
+                      const operatorMap: Record<string, string> = { orange: 'Orange Money', mtn: 'MTN MoMo', wave: 'Wave', moov: 'Moov Money' };
                       const jekoResult = await initiateSubscriptionPayment({
                         subscriptionRef: `SUB-${currentUser.id}-${Date.now()}`,
                         amountXof: amount,
@@ -1900,38 +1882,7 @@ export default function ProviderDashboard({
                   {/* Operator Choice */}
                   <div className="space-y-2">
                     <p className="text-[9px] text-gray-400 font-bold text-left uppercase tracking-wider pl-1 font-mono">Choisissez votre opérateur :</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedOM('orange')}
-                        className={cn(
-                          "py-2 px-1 rounded-xl text-[9px] font-bold uppercase tracking-wider border transition-all text-center",
-                          selectedOM === 'orange' ? "bg-orange-500 border-orange-500 text-white font-extrabold shadow" : "bg-gray-50 border-gray-250 text-gray-500"
-                        )}
-                      >
-                        Orange Money 🍊
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedOM('mtn')}
-                        className={cn(
-                          "py-2 px-1 rounded-xl text-[9px] font-bold uppercase tracking-wider border transition-all text-center",
-                          selectedOM === 'mtn' ? "bg-yellow-500 border-yellow-500 text-white font-extrabold shadow" : "bg-gray-50 border-gray-250 text-gray-500"
-                        )}
-                      >
-                        MTN MoMo ⚡
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedOM('wave')}
-                        className={cn(
-                          "py-2 px-1 rounded-xl text-[9px] font-bold uppercase tracking-wider border transition-all text-center",
-                          selectedOM === 'wave' ? "bg-blue-400 border-green-400 text-white font-extrabold shadow" : "bg-gray-50 border-gray-250 text-gray-500"
-                        )}
-                      >
-                        Wave 🌊
-                      </button>
-                    </div>
+                    <OperatorSelector selected={selectedOM} onChange={setSelectedOM} />
                   </div>
 
                   {/* Phone Input */}
@@ -2459,26 +2410,7 @@ export default function ProviderDashboard({
                   {/* Opérateur */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Opérateur Mobile Money</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { id: 'orange', label: 'Orange', emoji: '🍊', active: 'bg-orange-500 border-orange-500 text-white' },
-                        { id: 'mtn',    label: 'MTN',    emoji: '⚡', active: 'bg-yellow-500 border-yellow-500 text-white' },
-                        { id: 'wave',   label: 'Wave',   emoji: '🌊', active: 'bg-blue-400 border-blue-400 text-white'   },
-                      ].map(op => (
-                        <button
-                          key={op.id}
-                          type="button"
-                          onClick={() => setWithdrawalOperator(op.id as 'orange' | 'mtn' | 'wave')}
-                          className={cn(
-                            "py-2.5 rounded-xl text-xs font-semibold border transition-all text-center",
-                            withdrawalOperator === op.id ? op.active : "bg-gray-50 border-gray-200 text-gray-500"
-                          )}
-                        >
-                          <span className="block text-base">{op.emoji}</span>
-                          {op.label}
-                        </button>
-                      ))}
-                    </div>
+                    <OperatorSelector selected={withdrawalOperator} onChange={setWithdrawalOperator} />
                   </div>
 
                   {/* Numéro */}
