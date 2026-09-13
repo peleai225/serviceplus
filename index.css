@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-sans:    "Onest", ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary:        #16a34a;
+  --color-primary-light:  #22c55e;
+  --color-primary-xlight: #dcfce7;
+  --color-primary-dark:   #15803d;
+
+  --color-surface: #F9FAFB;
+  --color-card:    #FFFFFF;
+  --color-border:  #E5E7EB;
+  --color-muted:   #9CA3AF;
+  --color-text-2:  #4B5563;
+  --color-text:    #111827;
+
+  --color-warning: #D97706;
+  --color-error:   #DC2626;
+  --color-info:    #0284C7;
+}
+
+@layer base {
+  body {
+    @apply antialiased text-gray-900 bg-gray-50 overflow-x-hidden;
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+  }
+}
+
+@layer components {
+  .glass-header {
+    @apply sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-gray-100;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-gray-100;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Bouton primaire vert */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-green-600 text-white font-semibold text-sm
+           px-6 py-3.5 rounded-[20px]
+           shadow-[0_4px_20px_rgba(22,163,74,0.25)]
+           hover:bg-green-700 hover:shadow-[0_8px_32px_rgba(22,163,74,0.30)]
+           active:scale-[0.97] transition-all duration-200 cursor-pointer;
+  }
+
+  /* Bouton secondaire vert clair */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-green-50 text-green-800 font-semibold text-sm
+           px-6 py-3.5 rounded-[20px] border border-green-200
+           hover:bg-green-100 active:scale-[0.97]
+           transition-all duration-200 cursor-pointer;
+  }
+
+  /* Card standard */
+  .card {
+    @apply bg-white rounded-2xl border border-gray-200
+           shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4;
+  }
+
+  /* Input standard */
+  .input {
+    @apply w-full bg-gray-50 border border-gray-200 rounded-xl
+           px-4 py-3 font-medium text-[15px] text-gray-900
+           placeholder:text-gray-400
+           focus:outline-none focus:border-green-500
+           focus:ring-[3px] focus:ring-green-100
+           transition-all duration-150;
+  }
+
+  /* Badge de statut */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1
+           rounded-full text-[11px] font-semibold;
+  }
+  .badge-success  { @apply bg-green-50 text-green-700; }
+  .badge-warning  { @apply bg-amber-50 text-amber-700; }
+  .badge-error    { @apply bg-red-50 text-red-700; }
+  .badge-info     { @apply bg-sky-50 text-sky-700; }
+  .badge-neutral  { @apply bg-gray-100 text-gray-600; }
+}
+
+/* Utilitaires */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.safe-top    { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Police d'affichage (montants, logo) */
+.font-display { font-family: var(--font-display); }

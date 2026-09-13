@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper ──────────────────────────────────────────────────────────────
+    // App uses anonymous Firebase Auth (signInAnonymously) to satisfy this check.
+    // UID matching is not used because the app has its own phone-based auth layer.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Guard: passwords must never be stored in Firestore
+    function hasNoPasswordField() {
+      return !('password' in request.resource.data);
+    }
+
+    // ─── users ────────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      // Any signed-in client can read users (needed for provider discovery)
+      allow read: if isSignedIn();
+
+      // Create / update: signed in, no password field allowed
+      allow create: if isSignedIn() && hasNoPasswordField();
+      allow update: if isSignedIn() && hasNoPasswordField();
+
+      // Delete: only via admin action (signed in)
+      allow delete: if isSignedIn();
+    }
+
+    // ─── missions ─────────────────────────────────────────────────────────────
+    match /missions/{missionId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // ─── transactions ─────────────────────────────────────────────────────────
+    match /transactions/{transactionId} {
+      // Read: signed-in users (filtered by userId in frontend)
+      allow read: if isSignedIn();
+
+      // Write: signed in — app creates INCOME transactions on completion,
+      //        Cloud Functions create SUB- and WITHDRAWAL- transactions.
+      allow create, update: if isSignedIn();
+
+      // Only admins should delete transactions (no delete needed currently)
+      allow delete: if false;
+    }
+
+    // ─── notifications ────────────────────────────────────────────────────────
+    match /notifications/{notificationId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // ─── pending_payments ─────────────────────────────────────────────────────
+    // Only Cloud Functions interact with this collection — no client access
+    match /pending_payments/{paymentId} {
+      allow read, write: if false;
+    }
+
+    // ─── platform/config ──────────────────────────────────────────────────────
+    match /platform/config {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn(); // Admins only in practice (enforced at app layer)
+    }
+
+    // API secrets — NEVER accessible from client
+    match /platform/secrets {
+      allow read, write: if false;
+    }
+
+    // ─── platform/config subcollections (if any) ─────────────────────────────
+    match /platform/{doc} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+  }
+}

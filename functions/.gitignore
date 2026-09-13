@@ -1,0 +1,14 @@
+# Compiled output
+lib/
+
+# Node modules
+node_modules/
+
+# Firebase debug
+firebase-debug.log
+firebase-debug.*.log
+
+# Environment secrets — NEVER commit the real .env
+.env
+.env.local
+.env.production
