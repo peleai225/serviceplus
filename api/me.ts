@@ -11,13 +11,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { token } = req.body || {};
 
     if (!token || typeof token !== 'string') {
-      return res.status(401).json({ error: 'Token requis' });
+      return res.status(401).json({ valid: false, error: 'Token requis' });
     }
 
     // Look up session
     const sessionDoc = await db.collection('sessions').doc(token).get();
     if (!sessionDoc.exists) {
-      return res.status(401).json({ error: 'Session invalide' });
+      return res.status(401).json({ valid: false, error: 'Session invalide' });
     }
 
     const session = sessionDoc.data()!;
@@ -26,18 +26,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (new Date(session.expiresAt) < new Date()) {
       // Clean up expired session
       await db.collection('sessions').doc(token).delete();
-      return res.status(401).json({ error: 'Session expirée' });
+      return res.status(401).json({ valid: false, error: 'Session expirée' });
     }
 
     // Fetch user
     const userDoc = await db.collection('users').doc(session.userId).get();
     if (!userDoc.exists) {
-      return res.status(401).json({ error: 'Utilisateur introuvable' });
+      return res.status(401).json({ valid: false, error: 'Utilisateur introuvable' });
     }
 
     const user = userDoc.data()!;
 
     return res.status(200).json({
+      valid: true,
       success: true,
       user: {
         id: user.id,
@@ -50,6 +51,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err: any) {
     console.error('[me] Error:', err);
-    return res.status(500).json({ error: 'Erreur interne du serveur' });
+    return res.status(500).json({ valid: false, error: 'Erreur interne du serveur' });
   }
 }

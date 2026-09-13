@@ -63,11 +63,11 @@ export async function login(phone: string, password: string): Promise<{ user: Us
 }
 
 export async function sendOTP(phone: string): Promise<{ success: boolean; message: string }> {
-  return apiPost<{ success: boolean; message: string }>('/api/send-otp', { phone });
+  return apiPost<{ success: boolean; message: string }>('/api/otp', { action: 'send', phone });
 }
 
 export async function verifyOTP(phone: string, code: string): Promise<{ verified: boolean }> {
-  return apiPost<{ verified: boolean }>('/api/verify-otp', { phone, code });
+  return apiPost<{ verified: boolean }>('/api/otp', { action: 'verify', phone, code });
 }
 
 export async function checkSession(): Promise<{ valid: boolean; user?: User }> {
@@ -75,7 +75,7 @@ export async function checkSession(): Promise<{ valid: boolean; user?: User }> {
   if (!token) {
     return { valid: false };
   }
-  return apiPost<{ valid: boolean; user?: User }>('/api/check-session', { token });
+  return apiPost<{ valid: boolean; user?: User }>('/api/me', { token });
 }
 
 export async function logout(): Promise<void> {
