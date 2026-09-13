@@ -14,8 +14,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const userSnap = await db.doc(`users/${adminUserId}`).get();
     const userData = userSnap.data();
-    if (!userData || userData.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Admin access required' });
+    if (!userData) {
+      return res.status(403).json({ error: `Utilisateur ${adminUserId} introuvable dans Firestore. Reconnectez-vous.` });
+    }
+    if (userData.role !== 'ADMIN') {
+      return res.status(403).json({ error: `Rôle "${userData.role}" insuffisant. Seuls les ADMIN peuvent sauvegarder.` });
     }
 
     const update: Record<string, string> = { updatedAt: new Date().toISOString(), updatedBy: adminUserId };
