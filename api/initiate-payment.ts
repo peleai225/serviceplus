@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { db, FieldValue } from './_lib/firebase-admin.js';
-import { createPaymentRequest, toJekoPayInMethod } from './_lib/jeko.js';
+import { createPaymentRequest, toJekoPayInMethod, formatPhoneCI } from './_lib/jeko.js';
 import { getJekoConfig, APP_BASE_URL, cors } from './_lib/config.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       storeId: cfg.storeId, amountXof, paymentMethod, reference,
       successUrl: `${APP_BASE_URL}/?jekoStatus=success&ref=${reference}`,
       errorUrl:   `${APP_BASE_URL}/?jekoStatus=error&ref=${reference}`,
-      payerPhone,
+      payerPhone: formatPhoneCI(payerPhone),
       apiKey: cfg.apiKey, apiKeyId: cfg.apiKeyId,
     });
 

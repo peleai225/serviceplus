@@ -1,5 +1,15 @@
 const JEKO_BASE = 'https://api.jeko.africa';
 
+export function formatPhoneCI(phone?: string): string | undefined {
+  if (!phone) return undefined;
+  let cleaned = phone.replace(/[\s\-()]/g, '');
+  if (cleaned.startsWith('+')) return cleaned;
+  if (cleaned.startsWith('00225')) cleaned = cleaned.slice(2);
+  if (cleaned.startsWith('225') && cleaned.length >= 12) return `+${cleaned}`;
+  if (cleaned.startsWith('0')) cleaned = cleaned.slice(1);
+  return `+225${cleaned}`;
+}
+
 export function jekoHeaders(apiKey: string, apiKeyId: string): Record<string, string> {
   if (!apiKey || !apiKeyId) {
     throw new Error('Jèko API keys not configured. Set them in the admin backoffice (Settings > API).');
