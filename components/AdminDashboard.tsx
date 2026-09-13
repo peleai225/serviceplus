@@ -80,6 +80,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // State for splitting Users view
   const [userViewMode, setUserViewMode] = useState<'CLIENT' | 'PROVIDER'>('CLIENT');
   const [selectedUserForHistory, setSelectedUserForHistory] = useState<User | null>(null);
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+  const [resetTempCode, setResetTempCode] = useState<string | null>(null);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
   const [bonusAmountInput, setBonusAmountInput] = useState('');
   const [isAwardingBonus, setIsAwardingBonus] = useState(false);
 
@@ -198,6 +201,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setAdminPhone(currentUser.phone || '');
     setAdminName(currentUser.name || '');
   }, [currentUser]);
+
+  const handleAdminResetPassword = async (user: User) => {
+    setResetPasswordLoading(true);
+    setResetTempCode(null);
+    try {
+      const token = localStorage.getItem('serviplus_session_token');
+      const res = await fetch('/api/admin-reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, userId: user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+      setResetTempCode(data.tempCode);
+    } catch (err: any) {
+      alert('Erreur : ' + err.message);
+    } finally {
+      setResetPasswordLoading(false);
+    }
+  };
 
   // API Config state (stored in localStorage — no secret keys in frontend)
   const [jekoStoreId, setJekoStoreId] = useState(() => localStorage.getItem('api_jeko_store_id') || '');
@@ -595,9 +618,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             </button>
                                         )
                                     )}
+                                    {/* Reset password */}
+                                    {u.id !== currentUser.id && (
+                                      <button
+                                        onClick={() => { setResetPasswordUser(u); setResetTempCode(null); }}
+                                        className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-full transition-colors"
+                                        title="Réinitialiser le mot de passe"
+                                      >
+                                        <Key size={16} />
+                                      </button>
+                                    )}
                                     {/* Generic Delete for everyone except self and superadmin rules */}
                                     {u.id !== currentUser.id && !u.isSuperAdmin && (
-                                         <button 
+                                         <button
                                             onClick={() => onDeleteUser(u.id)}
                                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
                                             title="Supprimer l'utilisateur"
@@ -611,6 +644,66 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </tbody>
                  </table>
              </div>
+
+             {/* RESET PASSWORD MODAL */}
+             {resetPasswordUser && (
+               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-gray-100 animate-slide-up">
+                   <div className="flex items-center gap-3 mb-5">
+                     <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+                       <Key size={20} className="text-amber-600" />
+                     </div>
+                     <div>
+                       <h3 className="font-bold text-gray-900 text-base">Réinitialiser le mot de passe</h3>
+                       <p className="text-xs text-gray-500">{resetPasswordUser.name} · {resetPasswordUser.phone}</p>
+                     </div>
+                   </div>
+
+                   {!resetTempCode ? (
+                     <>
+                       <p className="text-sm text-gray-600 mb-5 leading-relaxed">
+                         Un nouveau code temporaire à 4 chiffres sera généré et affiché ici. Communiquez-le à l'utilisateur par téléphone ou WhatsApp.
+                       </p>
+                       <div className="flex gap-3">
+                         <button
+                           onClick={() => setResetPasswordUser(null)}
+                           className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50"
+                         >
+                           Annuler
+                         </button>
+                         <button
+                           onClick={() => handleAdminResetPassword(resetPasswordUser)}
+                           disabled={resetPasswordLoading}
+                           className="flex-1 py-3 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 flex items-center justify-center gap-2"
+                         >
+                           {resetPasswordLoading ? <Loader2 className="animate-spin" size={16} /> : 'Générer le code'}
+                         </button>
+                       </div>
+                     </>
+                   ) : (
+                     <>
+                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center mb-5">
+                         <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Code temporaire</p>
+                         <p className="text-4xl font-black text-amber-700 tracking-[0.4em] font-mono">{resetTempCode}</p>
+                         <p className="text-xs text-gray-500 mt-2">L'utilisateur doit changer ce code dès la connexion</p>
+                       </div>
+                       <button
+                         onClick={() => navigator.clipboard?.writeText(resetTempCode)}
+                         className="w-full py-2.5 border border-amber-200 text-amber-700 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-amber-50 mb-3"
+                       >
+                         <Copy size={14} /> Copier le code
+                       </button>
+                       <button
+                         onClick={() => { setResetPasswordUser(null); setResetTempCode(null); }}
+                         className="w-full py-3 bg-green-600 text-white rounded-xl font-semibold text-sm hover:bg-green-700"
+                       >
+                         Terminé
+                       </button>
+                     </>
+                   )}
+                 </div>
+               </div>
+             )}
 
              {/* DETAILED USER HISTORY & EVALUATION MODAL */}
              {selectedUserForHistory && (

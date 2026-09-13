@@ -1086,27 +1086,25 @@ const Auth: React.FC<AuthProps> = ({ users, onLogin, onRegister, onResetPassword
                   <form onSubmit={handleResetSubmit} className="space-y-5">
                     {resetStep === 1 ? (
                       <>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-semibold text-gray-700">Numéro de téléphone</label>
-                          <div className="relative">
-                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                            <input
-                              type="tel"
-                              placeholder="Ex : 0103030334"
-                              value={resetPhone}
-                              onChange={(e) => { setResetPhone(e.target.value); setError(''); }}
-                              className="w-full bg-white border border-gray-200 text-gray-900 rounded-[12px] pl-11 pr-4 py-3.5 font-medium text-[15px] outline-none focus:border-green-500 focus:ring-[3px] focus:ring-green-100 transition-all placeholder:text-gray-300"
-                              required
-                            />
-                          </div>
+                        {/* Support contact — no self-service reset without SMS */}
+                        <div className="bg-green-50 border border-green-200 p-4 rounded-[14px] space-y-3">
+                          <p className="text-sm font-semibold text-gray-800">Contactez le support Servi+</p>
+                          <p className="text-xs text-gray-600 leading-relaxed">
+                            Pour réinitialiser votre code secret, contactez-nous directement. Un administrateur vous communiquera un code temporaire.
+                          </p>
+                          <a
+                            href="https://wa.me/2250749793516?text=Bonjour%2C%20j%27ai%20oubli%C3%A9%20mon%20code%20secret%20Servi%2B"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 w-full bg-green-600 text-white rounded-[12px] py-3.5 font-semibold text-[14px] shadow-[0_4px_20px_rgba(22,163,74,0.28)] hover:bg-green-700 active:scale-[0.97] transition-all"
+                          >
+                            <Phone size={15} />
+                            Contacter le support WhatsApp
+                          </a>
                         </div>
-                        <button
-                          type="submit"
-                          disabled={loading}
-                          className="w-full bg-green-600 text-white rounded-[12px] py-4 font-semibold text-[15px] shadow-[0_4px_20px_rgba(22,163,74,0.28)] hover:bg-green-700 active:scale-[0.97] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          {loading ? <Loader2 className="animate-spin" size={17} /> : "Vérifier mon numéro"}
-                        </button>
+                        <p className="text-[10px] text-gray-400 text-center">
+                          Support disponible 7j/7 · Réponse sous 24h
+                        </p>
                       </>
                     ) : (
                       <>
