@@ -62,7 +62,7 @@ export interface AppConfig {
 const DEFAULT_CONFIG: AppConfig = {
   enableHourExtension: true,
   enableFingerprint: true,
-  enable2FA: true,
+  enable2FA: false,
   enableTrainingSection: true,
   cityAvailability: {
     'Abidjan': true,
