@@ -1,25 +1,20 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
-if (!admin.apps?.length) {
+if (!getApps().length) {
   const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (serviceAccount) {
     try {
       const parsed = JSON.parse(serviceAccount);
-      admin.initializeApp({
-        credential: admin.credential.cert(parsed),
-      });
+      initializeApp({ credential: cert(parsed) });
     } catch (e) {
       console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:', e);
-      admin.initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'serviplus-f1b8f',
-      });
+      initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || 'serviplus-f1b8f' });
     }
   } else {
-    admin.initializeApp({
-      projectId: process.env.FIREBASE_PROJECT_ID || 'serviplus-f1b8f',
-    });
+    initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || 'serviplus-f1b8f' });
   }
 }
 
-export const db = admin.firestore();
-export { admin };
+export const db = getFirestore();
+export { FieldValue };

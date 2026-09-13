@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { db, admin } from './_lib/firebase-admin.js';
+import { db, FieldValue } from './_lib/firebase-admin.js';
 import { createPaymentRequest, toJekoPayInMethod } from './_lib/jeko.js';
 import { getJekoConfig, APP_BASE_URL, cors } from './_lib/config.js';
 
@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await db.collection('pending_payments').doc(reference).set({
       subscriptionRef: reference, paymentRequestId: result.id, reference, operator, amountXof,
       type: 'subscription', status: 'pending',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
 
     return res.status(200).json({ checkoutUrl: result.redirectUrl, paymentRequestId: result.id, reference });
