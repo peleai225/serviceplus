@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Crown, Users, TrendingUp, AlertTriangle, Clock,
   CheckCircle, XCircle, Calendar, ChevronRight, X, DollarSign,
 } from 'lucide-react';
 import { User, Transaction, UserRole } from '../../types';
+import { loadAppConfigFromFirestore, saveAppConfig } from '../../services/configService';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -232,6 +233,37 @@ const AdminSubscriptionsPanel: React.FC<AdminSubscriptionsPanelProps> = ({
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // ---- Plan prices ----
+  const [planPrices, setPlanPrices] = useState({ starter: 2500, pro: 5000, premium: 10000 });
+  const [planPricesSaving, setPlanPricesSaving] = useState(false);
+  const [planPricesSaved, setPlanPricesSaved] = useState(false);
+
+  useEffect(() => {
+    loadAppConfigFromFirestore().then(cfg => {
+      if (cfg.subscriptionPlans) {
+        setPlanPrices({
+          starter: cfg.subscriptionPlans.starter ?? 2500,
+          pro: cfg.subscriptionPlans.pro ?? 5000,
+          premium: cfg.subscriptionPlans.premium ?? 10000,
+        });
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleSavePlanPrices = async () => {
+    setPlanPricesSaving(true);
+    try {
+      const cfg = await loadAppConfigFromFirestore();
+      await saveAppConfig({ ...cfg, subscriptionPlans: planPrices });
+      setPlanPricesSaved(true);
+      setTimeout(() => setPlanPricesSaved(false), 2500);
+    } catch {
+      alert('Erreur lors de la sauvegarde des prix.');
+    } finally {
+      setPlanPricesSaving(false);
+    }
+  };
+
   // ---- providers only ----
   const providers = useMemo(
     () => users.filter(u => u.role === UserRole.PROVIDER),
@@ -247,6 +279,14 @@ const AdminSubscriptionsPanel: React.FC<AdminSubscriptionsPanelProps> = ({
       .filter(t => isSubTransaction(t) && isCurrentMonth(t.date))
       .reduce((sum, t) => sum + t.amount, 0);
   }, [transactions]);
+
+  // ---- Subscriber counts per plan ----
+  const kpiByPlan = useMemo(() => ({
+    FREE:    providers.filter(u => !u.subscriptionPlan || u.subscriptionPlan === 'FREE').length,
+    STARTER: providers.filter(u => u.subscriptionPlan === 'STARTER').length,
+    PRO:     providers.filter(u => u.subscriptionPlan === 'PRO').length,
+    PREMIUM: providers.filter(u => u.subscriptionPlan === 'PREMIUM').length,
+  }), [providers]);
 
   // ---- Filtered list ----
   const filteredProviders = useMemo(() => {
@@ -710,6 +750,78 @@ const AdminSubscriptionsPanel: React.FC<AdminSubscriptionsPanelProps> = ({
             })}
           </ul>
         )}
+      </div>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Plans & Prix                                                        */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+          <Crown size={18} className="text-amber-500" />
+          <h2 className="text-base font-semibold text-gray-800">Plans & Prix des abonnements</h2>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {/* GRATUIT */}
+            <div className="rounded-2xl border-2 border-gray-100 p-4 space-y-2">
+              <p className="font-bold text-gray-700 text-sm">Gratuit</p>
+              <p className="text-2xl font-black text-gray-900">0 F</p>
+              <p className="text-xs text-gray-400">5 missions/mois</p>
+              <p className="mt-2 text-xs font-semibold text-green-600">{kpiByPlan.FREE} prestataire(s)</p>
+            </div>
+            {/* STARTER */}
+            <div className="rounded-2xl border-2 border-green-200 p-4 space-y-2">
+              <p className="font-bold text-green-700 text-sm">Starter</p>
+              <input
+                type="number"
+                value={planPrices.starter}
+                onChange={e => setPlanPrices(prev => ({ ...prev, starter: Number(e.target.value) || 0 }))}
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-lg font-black text-gray-900 focus:outline-none focus:border-green-500"
+              />
+              <p className="text-xs text-gray-400">F CFA / mois · 20 missions</p>
+              <p className="mt-2 text-xs font-semibold text-green-600">{kpiByPlan.STARTER} prestataire(s)</p>
+            </div>
+            {/* PRO */}
+            <div className="rounded-2xl border-2 border-blue-200 p-4 space-y-2">
+              <p className="font-bold text-blue-700 text-sm">Pro</p>
+              <input
+                type="number"
+                value={planPrices.pro}
+                onChange={e => setPlanPrices(prev => ({ ...prev, pro: Number(e.target.value) || 0 }))}
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-lg font-black text-gray-900 focus:outline-none focus:border-blue-500"
+              />
+              <p className="text-xs text-gray-400">F CFA / mois · Illimité</p>
+              <p className="mt-2 text-xs font-semibold text-blue-600">{kpiByPlan.PRO} prestataire(s)</p>
+            </div>
+            {/* PREMIUM */}
+            <div className="rounded-2xl border-2 border-purple-200 p-4 space-y-2">
+              <p className="font-bold text-purple-700 text-sm">Premium</p>
+              <input
+                type="number"
+                value={planPrices.premium}
+                onChange={e => setPlanPrices(prev => ({ ...prev, premium: Number(e.target.value) || 0 }))}
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-lg font-black text-gray-900 focus:outline-none focus:border-purple-500"
+              />
+              <p className="text-xs text-gray-400">F CFA / mois · Illimité + priorité</p>
+              <p className="mt-2 text-xs font-semibold text-purple-600">{kpiByPlan.PREMIUM} prestataire(s)</p>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={handleSavePlanPrices}
+              disabled={planPricesSaving}
+              className="px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold disabled:opacity-60 flex items-center gap-2 transition-colors"
+            >
+              {planPricesSaving ? (
+                <span>Enregistrement…</span>
+              ) : planPricesSaved ? (
+                <><CheckCircle size={16} /> Prix sauvegardés</>
+              ) : (
+                'Enregistrer les prix'
+              )}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* ------------------------------------------------------------------ */}

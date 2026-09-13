@@ -11,6 +11,7 @@ import {
   MessageSquare, Eye, EyeOff, Search, SlidersHorizontal, Bell, Gift, Sparkles
 } from 'lucide-react';
 import { estimateMissionDetails } from '../services/geminiService';
+import { initiateMarketPayment, openCheckout } from '../services/jekoService';
 import { cn } from '../lib/utils';
 import MapView from './MapView';
 
@@ -187,6 +188,8 @@ export default function ClientDashboard({
   const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
   const [newMarketName, setNewMarketName] = useState('');
   const [newMarketPrice, setNewMarketPrice] = useState('');
+  const [marketListDescription, setMarketListDescription] = useState('');
+  const [marketBudget, setMarketBudget] = useState<number>(0);
 
   // Modals / active actions
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -321,10 +324,11 @@ export default function ClientDashboard({
       const qty = Math.max(10, laundryQuantity);
       basePrice = qty * 300;
     } else if (selectedCategory === ServiceCategory.MARKET) {
-      const itemsSum = marketItems.reduce((acc, item) => acc + item.price, 0);
-      // Fee additions: Emballage: 300 francs, Prestation de course: 500 francs, Livraison: 1000 francs
-      const extraFees = itemsSum > 0 ? (300 + 500 + 1000) : 0;
-      basePrice = itemsSum + extraFees;
+      const budget = marketBudget > 0 ? marketBudget : 0;
+      const serviceFee = 500;
+      const deliveryFee = 1000;
+      const mktJekoFee = Math.ceil((budget + serviceFee + deliveryFee) * 0.015);
+      basePrice = budget + serviceFee + deliveryFee + mktJekoFee;
     } else {
       hours = getCalculatedDuration();
       // Pricing rule: 2 hours is 3,500 F CFA base. Each additional hour is 1,500 F CFA.
@@ -441,8 +445,8 @@ export default function ClientDashboard({
       } else if (selectedCategory === ServiceCategory.LAUNDRY) {
         finalDescription = `🧺 Lessive & Repassage\n• Nombre de vêtements: ${laundryQuantity} pièces (Min. 10)\n• Consignes: ${specificTasks || 'Aucune spécifique'}`;
       } else if (selectedCategory === ServiceCategory.MARKET) {
-        const itemsSum = marketItems.reduce((acc, item) => acc + item.price, 0);
-        finalDescription = `🛒 Liste de courses du Marché\n• Articles commandés:\n${marketItems.map(item => `  - ${item.name} (${item.price.toLocaleString()} F)`).join('\n')}\n\n• Détails des frais :\n  - Total provisions : ${itemsSum.toLocaleString()} F\n  - Emballage de commande : 300 F\n  - Prestation de course : 500 F\n  - Frais de livraison : 1 000 F\n• Notes de livraison: ${specificTasks || 'Aucune consigne'}`;
+        const mktJekoFee = Math.ceil((marketBudget + 1500) * 0.015);
+        finalDescription = `🛒 Faire mon Marché\n• Liste de courses :\n${marketListDescription || 'Non précisée'}\n\n• Détails des frais :\n  - Budget courses : ${marketBudget.toLocaleString()} F\n  - Frais service : 500 F\n  - Frais livraison : 1 000 F\n  - Frais Jèko (1.5%) : ${mktJekoFee.toLocaleString()} F\n  - Total : ${totalPrice.toLocaleString()} F CFA\n• Notes : ${specificTasks || 'Aucune consigne'}`;
       }
 
       let descriptionWithBonus = finalDescription;
@@ -451,7 +455,7 @@ export default function ClientDashboard({
       }
 
       const isMarket = selectedCategory === ServiceCategory.MARKET;
-      const paymentRefText = isMarket ? `TX-${Math.floor(Math.random() * 90000000 + 10000000)}` : "";
+      let paymentRefText = isMarket ? `TX-${Math.floor(Math.random() * 90000000 + 10000000)}` : "";
 
       const isoDate = `${date}T${time}`;
       const newMisionId = `m${Date.now()}`;
@@ -477,6 +481,9 @@ export default function ClientDashboard({
         durationHours: durationHours,
         quantity: selectedCategory === ServiceCategory.LAUNDRY ? laundryQuantity : undefined,
         marketItems: selectedCategory === ServiceCategory.MARKET ? marketItems : undefined,
+        marketList: selectedCategory === ServiceCategory.MARKET ? marketListDescription : undefined,
+        marketBudget: selectedCategory === ServiceCategory.MARKET ? marketBudget : undefined,
+        marketPaid: false,
         totalPrice,
         commission: 0,
         providerAmount: totalPrice,
@@ -491,6 +498,26 @@ export default function ClientDashboard({
         paymentOperator: isMarket ? selectedOperator : undefined,
         paymentRef: isMarket ? paymentRefText : undefined,
       };
+
+      // For market orders: initiate Jèko payment, open checkout
+      if (isMarket && totalPrice > 0) {
+        try {
+          const operatorMap: Record<string, string> = { Wave: 'wave', 'Orange Money': 'orange', 'MTN MoMo': 'mtn' };
+          const jekoResult = await initiateMarketPayment({
+            subscriptionRef: `MKT-${currentUser.id}-${Date.now()}`,
+            amountXof: totalPrice,
+            operator: operatorMap[selectedOperator] ?? 'wave',
+            payerPhone: paymentPhoneNumber,
+          });
+          openCheckout(jekoResult.checkoutUrl);
+          paymentRefText = jekoResult.reference;
+          newMission.marketPaid = true;
+          newMission.paymentRef = paymentRefText;
+        } catch (jekoErr: any) {
+          console.warn('Jèko market payment failed:', jekoErr.message);
+          newMission.marketPaid = false;
+        }
+      }
 
       onAddMission(newMission, isMarket ? selectedOperator : 'Espèces');
 
@@ -1623,6 +1650,58 @@ export default function ClientDashboard({
                 {selectedCategory === ServiceCategory.MARKET && (
                   <div className="bg-amber-50/50 p-5 rounded-[2rem] border border-amber-100/60 space-y-4">
                     <h4 className="text-xs font-semibold text-amber-700">🛒 Votre Panier d'Achats du Marché</h4>
+
+                    {/* Market description + budget */}
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-semibold text-gray-600 block mb-1.5">
+                          Liste de courses <span className="text-gray-400 font-normal">(décrivez librement ce que vous voulez)</span>
+                        </label>
+                        <textarea
+                          value={marketListDescription}
+                          onChange={e => setMarketListDescription(e.target.value)}
+                          placeholder="Ex: 1 kg de tomates bien mûres, 500g d'oignons, poisson frais au marché de Cocody..."
+                          rows={3}
+                          className="w-full bg-white border border-gray-200 focus:border-amber-400 rounded-xl px-4 py-3 text-xs text-gray-800 focus:outline-none resize-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-600 block mb-1.5">
+                          Budget marché estimé (FCFA)
+                        </label>
+                        <input
+                          type="number"
+                          value={marketBudget || ''}
+                          onChange={e => setMarketBudget(Number(e.target.value) || 0)}
+                          placeholder="Ex: 5000"
+                          className="w-full bg-white border border-gray-200 focus:border-amber-400 rounded-xl px-4 py-3 text-xs text-gray-800 focus:outline-none"
+                        />
+                      </div>
+                      {marketBudget > 0 && (
+                        <div className="bg-green-50 border border-green-100 rounded-xl p-3 text-xs space-y-1">
+                          <div className="flex justify-between text-gray-600">
+                            <span>Budget courses</span>
+                            <span>{marketBudget.toLocaleString()} F</span>
+                          </div>
+                          <div className="flex justify-between text-gray-600">
+                            <span>Frais service</span>
+                            <span>500 F</span>
+                          </div>
+                          <div className="flex justify-between text-gray-600">
+                            <span>Frais livraison</span>
+                            <span>1 000 F</span>
+                          </div>
+                          <div className="flex justify-between text-gray-600">
+                            <span>Frais Jèko (1.5%)</span>
+                            <span>{Math.ceil((marketBudget + 1500) * 0.015).toLocaleString()} F</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-green-700 border-t border-green-200 pt-1 mt-1">
+                            <span>Total à payer</span>
+                            <span>{(marketBudget + 1500 + Math.ceil((marketBudget + 1500) * 0.015)).toLocaleString()} F CFA</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     
                     {/* Add Item Row */}
                     <form onSubmit={handleAddMarketItem} className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-white rounded-xl border border-gray-100">

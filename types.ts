@@ -26,6 +26,15 @@ export enum MissionStatus {
   ARCHIVED = 'Archivée'
 }
 
+export type SubscriptionPlan = 'FREE' | 'STARTER' | 'PRO' | 'PREMIUM';
+
+export interface SubscriptionInfo {
+  plan: SubscriptionPlan;
+  startedAt: string;
+  expiresAt: string;
+  transactionId?: string;
+}
+
 export interface MarketItem {
   name: string;
   price: number;
@@ -60,6 +69,8 @@ export interface User {
   isSuperAdmin?: boolean;
   isSubscribed?: boolean;
   subscriptionExpiresAt?: string;
+  subscription?: SubscriptionInfo;
+  subscriptionPlan?: SubscriptionPlan;
   blockedUntil?: string;
   refusalsCountToday?: number;
   lastRefusalDate?: string;
@@ -114,6 +125,9 @@ export interface Mission {
   paymentPhone?: string;
   paymentOperator?: string;
   paymentRef?: string;
+  marketList?: string;
+  marketBudget?: number;
+  marketPaid?: boolean;
   extendedDurationHours?: number;
   extendedTotalPrice?: number;
   extensionStatus?: 'PENDING' | 'ACCEPTED' | 'REJECTED';

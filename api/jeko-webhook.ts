@@ -37,6 +37,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // Pay-in: plan-based subscription (new multi-tier system)
+    if (reference.startsWith('SUBPLAN-')) {
+      const pendingSnap = await db.collection('pending_subscriptions').where('reference', '==', reference).limit(1).get();
+      if (!pendingSnap.empty) {
+        const pendingDoc = pendingSnap.docs[0];
+        const pendingData = pendingDoc.data();
+        const { userId, plan, amount } = pendingData;
+
+        if (status === 'success' && userId) {
+          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+          await db.collection('users').doc(userId).update({
+            isSubscribed: true,
+            subscriptionPlan: plan,
+            subscriptionExpiresAt: expiresAt.toISOString(),
+            subscription: {
+              plan,
+              startedAt: new Date().toISOString(),
+              expiresAt: expiresAt.toISOString(),
+              transactionId: transaction.id,
+            },
+          });
+
+          await db.collection('transactions').doc(reference).set({
+            id: reference,
+            amount,
+            type: 'INCOME',
+            userId,
+            date: new Date().toISOString(),
+            method: 'Mobile Money',
+            status: 'SUCCESS',
+          });
+
+          await pendingDoc.ref.delete();
+        } else if (status === 'error') {
+          await pendingDoc.ref.update({ status: 'error' });
+        }
+      }
+    }
+
     // Pay-out: provider withdrawal
     if (reference.startsWith('WITHDRAWAL-')) {
       const newStatus = status === 'success' ? 'SUCCESS' : 'REJECTED';

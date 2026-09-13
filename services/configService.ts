@@ -52,6 +52,11 @@ export interface AppConfig {
   trainingContent: TrainingItem[];
   platformOffers?: PlatformOffer[];
   baseRates?: Record<string, number>;
+  subscriptionPlans?: {
+    starter: number;
+    pro: number;
+    premium: number;
+  };
 }
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -77,6 +82,11 @@ const DEFAULT_CONFIG: AppConfig = {
     [ServiceCategory.LAUNDRY]: true,
     [ServiceCategory.BABYSITTING]: true,
     [ServiceCategory.MARKET]: true,
+  },
+  subscriptionPlans: {
+    starter: 2500,
+    pro: 5000,
+    premium: 10000,
   },
   flashAnnouncements: [
     {

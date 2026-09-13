@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getAppConfig } from '../services/configService';
-import { initiateSubscriptionPayment, openCheckout } from '../services/jekoService';
+import { initiateSubscriptionPayment, initiateSubscriptionPlan, openCheckout } from '../services/jekoService';
 import { ABIDJAN_ZONES } from '../constants';
 import OperatorSelector, { OperatorId } from './OperatorSelector';
 
@@ -84,6 +84,17 @@ export default function ProviderDashboard({
   onDeleteAccount
 }: ProviderDashboardProps) {
   const config = getAppConfig();
+
+  // Plan pricing helpers
+  const planPrices = {
+    GRATUIT: 0,
+    STARTER: config.subscriptionPlans?.starter ?? 2500,
+    PRO: config.subscriptionPlans?.pro ?? 5000,
+    PREMIUM: config.subscriptionPlans?.premium ?? 10000,
+  };
+  const jekoFee = (price: number) => Math.ceil(price * 0.015);
+  const currentPlan = (currentUser.subscriptionPlan ?? 'FREE') as 'FREE' | 'STARTER' | 'PRO' | 'PREMIUM';
+
   const [quizResponses, setQuizResponses] = useState<Record<string, Record<number, number>>>({});
   const [quizDone, setQuizDone] = useState<Record<string, boolean>>({});
   const [collapsedVideos, setCollapsedVideos] = useState<Record<string, boolean>>({});
@@ -115,6 +126,8 @@ export default function ProviderDashboard({
   const [selectedOM, setSelectedOM] = useState<OperatorId>('wave');
   const [phoneForMoMo, setPhoneForMoMo] = useState(currentUser.phone || '');
   const [showSuccessSubscription, setShowSuccessSubscription] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<'STARTER' | 'PRO' | 'PREMIUM' | null>(null);
+  const [showPlanLimitModal, setShowPlanLimitModal] = useState(false);
 
   // Refusal states
   const [refusalTargetMissionId, setRefusalTargetMissionId] = useState<string | null>(null);
@@ -289,6 +302,18 @@ export default function ProviderDashboard({
   const freeOffersLeft = Math.max(0, 3 - acceptedMissionsCount);
   const subscriptionRequired = acceptedMissionsCount >= 3 && !isSubscribed;
 
+  // Per-plan monthly mission limits
+  const acceptedThisMonth = useMemo(() => {
+    const now = new Date();
+    return myMissions.filter(m => {
+      const d = new Date(m.createdAt);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }).length;
+  }, [myMissions]);
+
+  const planLimit = currentPlan === 'FREE' ? 5 : currentPlan === 'STARTER' ? 20 : 999;
+  const planLimitReached = acceptedThisMonth >= planLimit;
+
   const finances = useMemo(() => {
     const totalEarnings = myMissions
       .filter(m => m.status === MissionStatus.COMPLETED)
@@ -321,6 +346,10 @@ export default function ProviderDashboard({
   }, [currentUser.blockedUntil]);
 
   const handleAcceptMission = (missionId: string) => {
+    if (planLimitReached) {
+      setShowPlanLimitModal(true);
+      return;
+    }
     if (subscriptionRequired) {
       setShowSubscriptionModal(true);
       return;
@@ -1376,39 +1405,58 @@ export default function ProviderDashboard({
                   </div>
                 )}
 
-                {/* Choix formule */}
+                {/* Choix de plan */}
                 <div>
-                  <p className="text-xs font-bold text-gray-500 mb-2">Choisissez votre formule</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { id: 'monthly', label: 'Mensuel', price: '10 000', period: '/mois', badge: null },
-                      { id: 'annual',  label: 'Annuel',  price: '80 000', period: '/an',   badge: '−33%' },
-                    ].map(p => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => setSelectedSubPeriod(p.id as 'monthly' | 'annual')}
-                        className={cn(
-                          "relative rounded-2xl border-2 p-3 text-left transition-all",
-                          selectedSubPeriod === p.id ? "border-green-500 bg-green-50" : "border-gray-100 bg-gray-50"
-                        )}
-                      >
-                        {p.badge && (
-                          <span className="absolute -top-2 right-2 bg-amber-400 text-amber-900 text-[8px] font-bold px-1.5 py-0.5 rounded-full">
-                            {p.badge}
-                          </span>
-                        )}
-                        <p className={cn("text-xs font-bold", selectedSubPeriod === p.id ? "text-green-700" : "text-gray-500")}>
-                          {p.label}
-                        </p>
-                        <p className={cn("text-lg font-bold leading-tight mt-0.5", selectedSubPeriod === p.id ? "text-green-600" : "text-gray-800")}>
-                          {p.price} <span className="text-xs font-normal text-gray-400">F{p.period}</span>
-                        </p>
-                        {selectedSubPeriod === p.id && (
-                          <Check size={12} className="text-green-500 absolute bottom-2 right-2" />
-                        )}
-                      </button>
-                    ))}
+                  <p className="text-xs font-bold text-gray-500 mb-3">Choisissez votre plan</p>
+                  <div className="space-y-2">
+                    {([
+                      { id: 'GRATUIT' as const, label: 'Gratuit', price: planPrices.GRATUIT, desc: '5 missions/mois' },
+                      { id: 'STARTER' as const, label: 'Starter', price: planPrices.STARTER, desc: '20 missions/mois' },
+                      { id: 'PRO' as const,     label: 'Pro',     price: planPrices.PRO,     desc: 'Missions illimitées' },
+                      { id: 'PREMIUM' as const, label: 'Premium', price: planPrices.PREMIUM, desc: 'Illimité + priorité' },
+                    ]).map(p => {
+                      const fee = p.price > 0 ? jekoFee(p.price) : 0;
+                      const total = p.price + fee;
+                      const isCurrentActivePlan = (p.id !== 'GRATUIT' && currentPlan === p.id) || (p.id === 'GRATUIT' && (currentPlan === 'FREE' || !currentUser.subscriptionPlan));
+                      const isSelected = selectedPlan === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => { if (p.id !== 'GRATUIT') setSelectedPlan(p.id); }}
+                          className={cn(
+                            "w-full rounded-xl border-2 p-3 text-left transition-all",
+                            isCurrentActivePlan ? "border-green-500 bg-green-50" :
+                            isSelected ? "border-green-400 bg-green-50/60" :
+                            "border-gray-100 bg-gray-50 hover:border-gray-200"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className={cn("text-sm font-bold", isCurrentActivePlan || isSelected ? "text-green-700" : "text-gray-700")}>
+                                {p.label}
+                                {isCurrentActivePlan && <span className="ml-2 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold">Plan actuel</span>}
+                              </p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{p.desc}</p>
+                            </div>
+                            <div className="text-right">
+                              {p.price === 0 ? (
+                                <p className="text-sm font-bold text-green-600">Gratuit</p>
+                              ) : (
+                                <div>
+                                  <p className="text-[10px] text-gray-400">
+                                    {p.price.toLocaleString()} F + frais {fee} F
+                                  </p>
+                                  <p className={cn("text-sm font-bold", isSelected ? "text-green-600" : "text-gray-800")}>
+                                    {total.toLocaleString()} F CFA
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1433,20 +1481,19 @@ export default function ProviderDashboard({
                   disabled={isSubscribing}
                   onClick={async () => {
                     if (!phoneForMoMo.trim()) { alert("Veuillez saisir votre numéro Mobile Money."); return; }
+                    if (!selectedPlan) { alert("Veuillez choisir un plan."); return; }
                     setIsSubscribing(true);
                     try {
-                      const amount = selectedSubPeriod === 'monthly' ? 10000 : 80000;
                       const operatorMap: Record<string, string> = { orange: 'Orange Money', mtn: 'MTN MoMo', wave: 'Wave', moov: 'Moov Money' };
-                      const jekoResult = await initiateSubscriptionPayment({
-                        subscriptionRef: `SUB-${currentUser.id}-${Date.now()}`,
-                        amountXof: amount,
+                      const jekoResult = await initiateSubscriptionPlan({
+                        userId: currentUser.id,
+                        plan: selectedPlan,
+                        phone: phoneForMoMo,
                         operator: operatorMap[selectedOM] ?? 'Wave',
-                        payerPhone: phoneForMoMo,
                       });
                       openCheckout(jekoResult.checkoutUrl);
-                      const durationDays = selectedSubPeriod === 'monthly' ? 30 : 365;
-                      const expirationDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
-                      onUpdateUser({ isSubscribed: true, subscriptionExpiresAt: expirationDate.toISOString() });
+                      const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                      onUpdateUser({ isSubscribed: true, subscriptionPlan: selectedPlan, subscriptionExpiresAt: expirationDate.toISOString() });
                     } catch (err: any) {
                       alert(`Erreur de paiement : ${err.message}`);
                     } finally {
@@ -1458,7 +1505,7 @@ export default function ProviderDashboard({
                   {isSubscribing ? (
                     <><Loader2 className="animate-spin" size={16} /> Ouverture du paiement…</>
                   ) : (
-                    <><CreditCard size={16} />{selectedSubPeriod === 'monthly' ? "S'abonner — 10 000 F / mois" : "S'abonner — 80 000 F / an"}</>
+                    <><CreditCard size={16} />{selectedPlan ? `Choisir ${selectedPlan} — ${(planPrices[selectedPlan] + jekoFee(planPrices[selectedPlan])).toLocaleString()} F CFA` : "Sélectionnez un plan"}</>
                   )}
                 </button>
 
@@ -1815,6 +1862,44 @@ export default function ProviderDashboard({
                 </div>
               )}
 
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* PLAN LIMIT MODAL */}
+      <AnimatePresence>
+        {showPlanLimitModal && (
+          <div className="fixed inset-0 z-50 bg-gray-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center space-y-4"
+            >
+              <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto">
+                <Lock size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Limite du plan atteinte</h3>
+              <p className="text-sm text-gray-500">
+                {currentPlan === 'FREE' || !currentUser.subscriptionPlan
+                  ? "Vous avez atteint la limite de 5 missions gratuites ce mois-ci. Passez au plan Starter pour continuer."
+                  : "Vous avez atteint la limite de 20 missions Starter ce mois-ci. Passez au plan Pro pour continuer."}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowPlanLimitModal(false)}
+                  className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium"
+                >
+                  Fermer
+                </button>
+                <button
+                  onClick={() => { setShowPlanLimitModal(false); setShowSubscriptionModal(true); }}
+                  className="flex-1 py-3 rounded-xl bg-green-600 text-white text-sm font-semibold"
+                >
+                  Changer de plan
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

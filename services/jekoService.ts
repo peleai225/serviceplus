@@ -29,6 +29,29 @@ export interface PaymentResult {
   reference: string;
 }
 
+/** Initiates a Jèko checkout for a plan-based provider subscription (new multi-tier system). */
+export const initiateSubscriptionPlan = async (params: {
+  userId: string;
+  plan: string;
+  phone: string;
+  operator: string;
+}): Promise<{ paymentRequestId: string; checkoutUrl: string; total: number }> => {
+  return apiCall<{ paymentRequestId: string; checkoutUrl: string; total: number }>(
+    'create-subscription',
+    params,
+  );
+};
+
+/** Initiates a Jèko checkout for a market (grocery) order prepayment. */
+export const initiateMarketPayment = async (params: {
+  subscriptionRef: string;
+  amountXof: number;
+  operator: string;
+  payerPhone?: string;
+}): Promise<PaymentResult> => {
+  return apiCall<PaymentResult>('initiate-payment', params);
+};
+
 /** Initiates a Jèko checkout for a provider subscription. */
 export const initiateSubscriptionPayment = async (params: {
   subscriptionRef: string;
