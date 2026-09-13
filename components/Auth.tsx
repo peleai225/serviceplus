@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserRole, User, ServiceCategory } from '../types';
-import { Eye, EyeOff, Lock, Phone, User as UserIcon, Check, CheckCircle, Camera, AlertCircle, Loader2, LayoutGrid, ChevronRight, CreditCard, Wrench, Shield, ArrowLeft, Sparkles, ShieldCheck, Briefcase, Fingerprint, Smartphone } from 'lucide-react';
+import { Eye, EyeOff, Lock, Phone, User as UserIcon, Check, CheckCircle, Camera, AlertCircle, Loader2, LayoutGrid, ChevronRight, CreditCard, Wrench, Shield, ArrowLeft, Sparkles, ShieldCheck, Briefcase, Smartphone } from 'lucide-react';
 import { uploadImage } from '../services/firebase';
 import { CITIES } from '../constants';
 import { cn } from '../lib/utils';
@@ -26,12 +26,6 @@ const Auth: React.FC<AuthProps> = ({ users, onLogin, onRegister, onResetPassword
 
   // App configurations
   const config = getAppConfig();
-
-  // Biometric login states
-  const [showFingerprintModal, setShowFingerprintModal] = useState(false);
-  const [biometricScanning, setBiometricScanning] = useState(false);
-  const [biometricProgress, setBiometricProgress] = useState(0);
-  const [biometricAlert, setBiometricAlert] = useState('');
 
   // 2FA login states
   const [show2FAModal, setShow2FAModal] = useState(false);
@@ -204,41 +198,6 @@ const Auth: React.FC<AuthProps> = ({ users, onLogin, onRegister, onResetPassword
     setTypeOf2FA(mode);
     setTypedOtp('');
     setShow2FAModal(true);
-  };
-
-  const handleStartBiometricScan = () => {
-    setBiometricScanning(true);
-    setBiometricProgress(0);
-    setBiometricAlert("Analyse de l'empreinte digitale en cours... Gardez votre doigt sur l'écran.");
-    const interval = setInterval(() => {
-      setBiometricProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            const targetUser = users.find(u => u.role === UserRole.CLIENT) || {
-              id: 'u1',
-              name: 'Client Demo',
-              email: 'client@serviplus.ci',
-              phone: '0103030334',
-              role: UserRole.CLIENT,
-              avatarUrl: 'https://ui-avatars.com/api/?name=Client&background=0D8ABC&color=fff',
-              address: 'Cocody, Abidjan',
-              city: 'Abidjan',
-              walletBalance: 0,
-              password: '1234'
-            };
-
-            setBiometricAlert("✅ Empreinte reconnue ! Bienvenue sur Servi+.");
-            setTimeout(() => {
-              setShowFingerprintModal(false);
-              onLogin(targetUser as User);
-            }, 1000);
-          }, 400);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 150);
   };
 
   const handleVerify2FA = async () => {
@@ -703,24 +662,6 @@ const Auth: React.FC<AuthProps> = ({ users, onLogin, onRegister, onResetPassword
                       {loading ? <Loader2 className="animate-spin" size={17} /> : 'Se connecter'}
                     </button>
 
-                    {config.enableFingerprint && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setError('');
-                          setSuccessMessage('');
-                          setShowFingerprintModal(true);
-                          setBiometricProgress(0);
-                          setBiometricAlert("Veuillez poser votre doigt sur le capteur d'empreinte pour vous connecter.");
-                          setBiometricScanning(false);
-                        }}
-                        className="w-full py-3.5 bg-gray-50 border border-gray-200 text-gray-700 rounded-[20px] font-semibold hover:bg-gray-100 active:scale-[0.97] transition-all flex items-center justify-center gap-2 mt-2 outline-none cursor-pointer"
-                        id="btn-fingerprint-login"
-                      >
-                        <Fingerprint size={16} className="text-green-600 animate-pulse" />
-                        <span>Empreinte Digitale</span>
-                      </button>
-                    )}
                   </form>
                 </div>
 
@@ -1303,84 +1244,6 @@ const Auth: React.FC<AuthProps> = ({ users, onLogin, onRegister, onResetPassword
                 Fermer
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL: FINGERPRINT ── */}
-      {showFingerprintModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-white border border-gray-100 rounded-[28px] p-8 text-center space-y-6 shadow-2xl relative">
-            <button
-              onClick={() => setShowFingerprintModal(false)}
-              className="absolute right-6 top-6 text-gray-400 hover:text-gray-700 transition"
-            >
-              ✕
-            </button>
-
-            <div className="space-y-2">
-              <h3 className="text-xl font-black text-gray-900">Authentification Biométrique</h3>
-              <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest">Technologie Fingerprint</p>
-            </div>
-
-            {/* Fingerprint pulse circle */}
-            <div className="flex flex-col items-center justify-center py-6">
-              <button
-                onClick={handleStartBiometricScan}
-                disabled={biometricScanning}
-                className={cn(
-                  "w-28 h-28 rounded-full flex items-center justify-center border-4 relative transition-all duration-300",
-                  biometricScanning
-                    ? "border-green-500 bg-green-50 shadow-lg shadow-green-500/20"
-                    : "border-gray-200 bg-gray-50 hover:border-green-400 hover:bg-green-50"
-                )}
-              >
-                {biometricScanning && (
-                  <div
-                    className="absolute inset-0 rounded-full border-4 border-green-400 animate-ping opacity-60"
-                    style={{ animationDuration: '1.5s' }}
-                  />
-                )}
-                <Fingerprint size={48} className={cn(
-                  "transition-colors duration-300",
-                  biometricScanning ? "text-green-600 animate-pulse" : "text-gray-400"
-                )} />
-              </button>
-
-              {biometricScanning && (
-                <div className="w-full max-w-xs mt-6 space-y-1.5">
-                  <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-green-500 rounded-full transition-all duration-150"
-                      style={{ width: `${biometricProgress}%` }}
-                    />
-                  </div>
-                  <p className="text-[10px] font-bold text-gray-400 text-right">{biometricProgress}% numérisé</p>
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl">
-              <p className="text-xs text-gray-700 font-medium leading-relaxed">
-                {biometricAlert}
-              </p>
-            </div>
-
-            {!biometricScanning ? (
-              <button
-                onClick={handleStartBiometricScan}
-                className="w-full py-4 rounded-[20px] font-black text-xs uppercase tracking-wider text-white bg-green-600 hover:bg-green-700 shadow-[0_4px_20px_rgba(22,163,74,0.25)] active:scale-[0.97] transition-all cursor-pointer border-none"
-              >
-                Démarrer la Numérisation
-              </button>
-            ) : (
-              <button
-                onClick={() => setBiometricScanning(false)}
-                className="w-full py-4 rounded-[20px] font-bold text-xs uppercase tracking-wider text-gray-600 bg-gray-100 hover:bg-gray-200 active:scale-[0.97] transition-all cursor-pointer border-none"
-              >
-                Annuler
-              </button>
-            )}
           </div>
         </div>
       )}
