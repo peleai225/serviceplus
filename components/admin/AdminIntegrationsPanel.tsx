@@ -321,65 +321,14 @@ const AdminIntegrationsPanel: React.FC<AdminIntegrationsPanelProps> = ({ current
           )}
         </div>
 
-        {/* Read-only fields */}
-        <div className="space-y-2">
-          {/* JEKO_API_KEY */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">
-              <Key size={11} className="inline mr-1" />JEKO_API_KEY
-            </label>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono text-gray-700">
-                {mask(jekoKey, showJekoKey)}
-              </div>
-              <button
-                onClick={() => setShowJekoKey(v => !v)}
-                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors border border-gray-200"
-                title={showJekoKey ? 'Masquer' : 'Afficher'}
-              >
-                {showJekoKey ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
+        {/* Formulaire de configuration Jèko */}
+        <div className="space-y-3">
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
+            <CheckCircle size={14} className="text-blue-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-blue-700">
+              Les clés sont sauvegardées de manière sécurisée dans <code className="font-mono bg-blue-100 px-1 rounded">platform/secrets</code> (serveur uniquement). Jamais exposées au navigateur.
+            </p>
           </div>
-
-          {/* JEKO_STORE_ID */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">
-              <Key size={11} className="inline mr-1" />JEKO_STORE_ID
-            </label>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono text-gray-700">
-                {mask(jekoStoreId, showJekoStore)}
-              </div>
-              <button
-                onClick={() => setShowJekoStore(v => !v)}
-                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors border border-gray-200"
-                title={showJekoStore ? 'Masquer' : 'Afficher'}
-              >
-                {showJekoStore ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Collapsible update form */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <button
-            onClick={() => setJekoFormOpen(v => !v)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-semibold text-gray-700"
-          >
-            <span>🔑 Configurer les clés API Jèko</span>
-            {jekoFormOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          </button>
-
-          {jekoFormOpen && (
-            <div className="p-4 space-y-3 border-t border-gray-200">
-              <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
-                <CheckCircle size={14} className="text-blue-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-blue-700">
-                  Les clés sont sauvegardées dans <code className="font-mono bg-blue-100 px-1 rounded">platform/secrets</code> via Cloud Function. Jamais exposées au client.
-                </p>
-              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">JEKO_API_KEY</label>
@@ -441,33 +390,13 @@ const AdminIntegrationsPanel: React.FC<AdminIntegrationsPanelProps> = ({ current
                 </div>
               )}
 
-              <button
-                onClick={handleSaveJeko}
-                disabled={(!jekoFormKey.trim() && !jekoFormStore.trim() && !jekoFormKeyId.trim()) || jekoSaving}
-                className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-bold px-4 py-2 rounded-xl transition-all"
-              >
-                <Check size={14} /> {jekoSaving ? 'Sauvegarde...' : 'Enregistrer dans Firestore (sécurisé)'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Deploy commands */}
-        <div>
-          <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-            Commandes de déploiement production
-          </p>
-          <div className="space-y-2">
-            {[
-              {
-                id: 'jeko-cmd-1',
-                cmd: 'firebase functions:config:set jeko.api_key="VOTRE_CLE" jeko.store_id="VOTRE_STORE_ID"',
-              },
-              { id: 'jeko-cmd-2', cmd: 'firebase deploy --only functions' },
-            ].map(item => (
-              <CodeLine key={item.id} cmd={item.cmd} id={item.id} copiedId={copiedId} copy={copy} />
-            ))}
-          </div>
+          <button
+            onClick={handleSaveJeko}
+            disabled={(!jekoFormKey.trim() && !jekoFormStore.trim() && !jekoFormKeyId.trim()) || jekoSaving}
+            className="w-full flex items-center justify-center gap-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-bold px-4 py-3 rounded-xl transition-all"
+          >
+            <Check size={14} /> {jekoSaving ? 'Sauvegarde en cours...' : 'Enregistrer (sécurisé)'}
+          </button>
         </div>
       </SectionCard>
 
