@@ -2172,25 +2172,44 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {showApiSection === 'jeko' && (
                   <div className="mx-5 mb-5 bg-purple-50 border border-purple-100 rounded-xl p-4 space-y-4 animate-slide-up">
                       <p className="text-xs font-black text-purple-800 uppercase tracking-widest">Configuration Jèko Payment Gateway</p>
+                      <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 mb-2">
+                          <Database size={14} className="text-blue-500 mt-0.5 shrink-0" />
+                          <p className="text-[10px] text-blue-700">Les clés sont sauvegardées de manière sécurisée côté serveur. Jamais exposées dans le navigateur.</p>
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                              <label className="block text-[10px] uppercase font-bold text-gray-500">Store ID (Identifiant Boutique)</label>
+                              <label className="block text-[10px] uppercase font-bold text-gray-500">JEKO_API_KEY</label>
+                              <input
+                                  type="password"
+                                  placeholder="Entrez la clé API Jèko"
+                                  value={jekoStoreId ? '' : ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    localStorage.setItem('_jeko_temp_key', val);
+                                  }}
+                                  ref={(el) => { if (el) el.value = localStorage.getItem('_jeko_temp_key') || ''; }}
+                                  className="w-full p-2.5 bg-white border border-purple-200 rounded-xl text-xs font-bold outline-none focus:border-purple-400"
+                              />
+                          </div>
+                          <div className="space-y-1.5">
+                              <label className="block text-[10px] uppercase font-bold text-gray-500">JEKO_API_KEY_ID</label>
+                              <input
+                                  type="password"
+                                  placeholder="Entrez le Key ID Jèko"
+                                  onChange={(e) => localStorage.setItem('_jeko_temp_key_id', e.target.value)}
+                                  ref={(el) => { if (el) el.value = localStorage.getItem('_jeko_temp_key_id') || ''; }}
+                                  className="w-full p-2.5 bg-white border border-purple-200 rounded-xl text-xs font-bold outline-none focus:border-purple-400"
+                              />
+                          </div>
+                          <div className="space-y-1.5">
+                              <label className="block text-[10px] uppercase font-bold text-gray-500">JEKO_STORE_ID</label>
                               <input
                                   type="text"
-                                  placeholder="Ex: SUB-XXXXXXXX"
+                                  placeholder="Entrez votre Store ID"
                                   value={jekoStoreId}
                                   onChange={(e) => setJekoStoreId(e.target.value)}
                                   className="w-full p-2.5 bg-white border border-purple-200 rounded-xl text-xs font-bold outline-none focus:border-purple-400"
                               />
-                              <p className="text-[9px] text-gray-400">Identifiant public de votre boutique Jèko (SUB- prefix)</p>
-                          </div>
-                          <div className="space-y-1.5">
-                              <label className="block text-[10px] uppercase font-bold text-gray-500">Clé API Secrète</label>
-                              <div className="w-full p-2.5 bg-gray-100 border border-gray-200 rounded-xl text-xs font-mono text-gray-500 flex items-center gap-2">
-                                  <Lock size={12} className="text-gray-400 shrink-0" />
-                                  <span>••••••••••••••••••••••••</span>
-                              </div>
-                              <p className="text-[9px] text-amber-600 font-semibold">Gérée via <code>JEKO_API_KEY</code> dans Cloud Functions</p>
                           </div>
                           <div className="space-y-1.5">
                               <label className="block text-[10px] uppercase font-bold text-gray-500">Environnement</label>
@@ -2211,16 +2230,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   </button>
                               </div>
                           </div>
-                          <div className="space-y-1.5">
-                              <label className="block text-[10px] uppercase font-bold text-gray-500">Déployer la clé dans Cloud Functions</label>
-                              <div className="bg-gray-900 text-green-400 rounded-xl p-3 font-mono text-[10px] space-y-1">
-                                  <p className="text-gray-500"># Dans votre terminal :</p>
-                                  <p>firebase functions:secrets:set JEKO_API_KEY</p>
-                                  <p>firebase functions:secrets:set JEKO_STORE_ID</p>
-                                  <p>firebase deploy --only functions</p>
-                              </div>
-                          </div>
                       </div>
+                      {apiSaveFeedback && <p className="text-xs font-bold text-green-600">{apiSaveFeedback}</p>}
+                      <button
+                          type="button"
+                          onClick={async () => {
+                            const tempKey = localStorage.getItem('_jeko_temp_key') || '';
+                            const tempKeyId = localStorage.getItem('_jeko_temp_key_id') || '';
+                            try {
+                              const { saveApiConfig: saveFn } = await import('../services/jekoService');
+                              await saveFn({
+                                adminUserId: currentUser.id,
+                                jekoApiKey: tempKey || undefined,
+                                jekoApiKeyId: tempKeyId || undefined,
+                                jekoStoreId: jekoStoreId || undefined,
+                                jekoEnv,
+                              });
+                              localStorage.setItem('api_jeko_store_id', jekoStoreId);
+                              localStorage.setItem('api_jeko_env', jekoEnv);
+                              localStorage.removeItem('_jeko_temp_key');
+                              localStorage.removeItem('_jeko_temp_key_id');
+                              setApiSaveFeedback('Configuration Jèko sauvegardée ✓');
+                              setTimeout(() => setApiSaveFeedback(''), 3000);
+                            } catch (e: any) {
+                              setApiSaveFeedback(`Erreur: ${e.message}`);
+                              setTimeout(() => setApiSaveFeedback(''), 5000);
+                            }
+                          }}
+                          className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition"
+                      >
+                          Enregistrer les clés Jèko (sécurisé)
+                      </button>
                   </div>
               )}
 
