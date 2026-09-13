@@ -1,4 +1,4 @@
-import { db } from './firebase-admin';
+import { db } from './firebase-admin.js';
 
 let _cache: { apiKey: string; apiKeyId: string; storeId: string; env: string } | null = null;
 

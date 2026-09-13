@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { db } from './_lib/firebase-admin';
-import { upsertContact, createTransfer, toJekoPayOutMethod } from './_lib/jeko';
-import { getJekoConfig, cors } from './_lib/config';
+import { db } from './_lib/firebase-admin.js';
+import { upsertContact, createTransfer, toJekoPayOutMethod } from './_lib/jeko.js';
+import { getJekoConfig, cors } from './_lib/config.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);

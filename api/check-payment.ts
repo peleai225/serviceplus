@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getPaymentRequest } from './_lib/jeko';
-import { getJekoConfig, cors } from './_lib/config';
+import { getPaymentRequest } from './_lib/jeko.js';
+import { getJekoConfig, cors } from './_lib/config.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);

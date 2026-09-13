@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { db } from './_lib/firebase-admin';
-import { invalidateCache, cors } from './_lib/config';
+import { db } from './_lib/firebase-admin.js';
+import { invalidateCache, cors } from './_lib/config.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);

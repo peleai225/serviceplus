@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { cors } from './_lib/config';
+import { cors } from './_lib/config.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);
