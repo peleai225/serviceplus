@@ -14,10 +14,11 @@ import * as firebaseAuth from 'firebase/auth';
 const { signInAnonymously: fbSignInAnonymously } = firebaseAuth as any;
 
 const { 
-  collection, 
-  onSnapshot, 
-  doc, 
-  setDoc, 
+  collection,
+  onSnapshot,
+  doc,
+  getDoc,
+  setDoc,
   updateDoc,
   deleteDoc
 } = firestoreModule as any;
@@ -75,7 +76,22 @@ const App: React.FC = () => {
   // The app uses its own phone+password auth layer on top.
   useEffect(() => {
     if (auth) {
-      fbSignInAnonymously(auth).catch((e: any) => console.warn("Anonymous Firebase Auth failed:", e));
+      fbSignInAnonymously(auth)
+        .then(() => {
+          // After auth, ensure currentUser exists in Firestore
+          if (db && currentUser) {
+            const userRef = doc(db, "users", currentUser.id);
+            getDoc(userRef).then((snap: any) => {
+              if (!snap.exists()) {
+                const { password: _pw, ...safeUser } = currentUser as any;
+                setDoc(userRef, JSON.parse(JSON.stringify(safeUser)))
+                  .then(() => console.log("User synced to Firestore:", currentUser.id))
+                  .catch((e: any) => console.warn("Could not sync user to Firestore:", e));
+              }
+            }).catch(() => {});
+          }
+        })
+        .catch((e: any) => console.warn("Anonymous Firebase Auth failed:", e));
     }
   }, []);
 
