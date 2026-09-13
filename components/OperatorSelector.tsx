@@ -14,7 +14,7 @@ const OPERATORS: Operator[] = [
   {
     id: 'wave',
     name: 'Wave',
-    logo: '/logos/wave.svg',
+    logo: '/logos/wave.png',
     color: '#1AC8ED',
     bgLight: 'bg-sky-50',
   },
